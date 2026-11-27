@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: HRConvert2 <hrconvert2@invalid>
+Date: Thu, 26 Nov 2026 22:07:03 -0500
+Subject: [PATCH] load: harden header counts
+
+---
+ lib/openctm.c | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/lib/openctm.c b/lib/openctm.c
+index 732cfab..373c9f8 100644
+--- a/lib/openctm.c
++++ b/lib/openctm.c
+@@ -1232,7 +1232,21 @@ CTMEXPORT void CTMCALL ctmLoadCustom(CTMcontext aContext, CTMreadfn aReadFn,
+   self->mUVMapCount = _ctmStreamReadUINT(self);
+   self->mAttribMapCount = _ctmStreamReadUINT(self);
+   flags = _ctmStreamReadUINT(self);
++
++  // Counts are held to what every array size & loop bound computed from them in 32 bits can hold,
++  // & map counts to the eight maps of each kind the API names.
++  if((self->mVertexCount > 0x0fffffff) || (self->mTriangleCount > 0x0fffffff) ||
++     (self->mUVMapCount > 8) || (self->mAttribMapCount > 8))
++  {
++    self->mError = CTM_BAD_FORMAT;
++    return;
++  }
++
+   _ctmStreamReadSTRING(self, &self->mFileComment);
++  if(self->mError != CTM_NONE)
++  {
++    return;
++  }
+ 
+   // Allocate memory for the mesh arrays
+   self->mVertices = (CTMfloat *) malloc(self->mVertexCount * sizeof(CTMfloat) * 3);

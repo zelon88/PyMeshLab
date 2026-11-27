@@ -1,0 +1,249 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: HRConvert2 <hrconvert2@invalid>
+Date: Thu, 26 Nov 2026 22:18:10 -0500
+Subject: [PATCH] Collada: harden the reader
+
+---
+ wrap/dae/util_dae.h          | 11 ++++--
+ wrap/io_trimesh/import_dae.h | 71 ++++++++++++++++++++++++++++--------
+ 2 files changed, 64 insertions(+), 18 deletions(-)
+
+diff --git a/wrap/dae/util_dae.h b/wrap/dae/util_dae.h
+index 431dd143..b837573c 100644
+--- a/wrap/dae/util_dae.h
++++ b/wrap/dae/util_dae.h
+@@ -245,7 +245,8 @@ namespace io {
+ 				QString rt = t[ii].firstChild().nodeValue();
+ 				QStringList rtl = rt.split(" ");
+ 				if (rtl.last() == "") rtl.removeLast();
+-				assert(rtl.size() == 4);
++				// A rotation with fewer than four values is left out, as reading it would run past the list.
++				if (rtl.size() < 4) continue;
+ 				tmp.SetRotateDeg(rtl.at(3).toFloat(),vcg::Point3f(rtl.at(0).toFloat(),rtl.at(1).toFloat(),rtl.at(2).toFloat()));
+ 				rotTmp = rotTmp*tmp;	
+ 			}
+@@ -260,7 +261,9 @@ namespace io {
+ 			QStringList coordlist = coord.split(" ");
+ 			if (coordlist.last() == "") 
+ 				coordlist.removeLast();
+-			assert(coordlist.size() == 3);
++			// A translation with fewer than three values is left out, as reading it would run past the list.
++			if (coordlist.size() < 3)
++				return;
+ 			m[0][0] = 1.0f;
+ 			m[1][1] = 1.0f;
+ 			m[2][2] = 1.0f;
+@@ -279,7 +282,9 @@ namespace io {
+ 			QStringList coordlist = coord.split(" ");
+ 			if (coordlist.last() == "") 
+ 				coordlist.removeLast();
+-			assert(coordlist.size() == 16);
++			// A matrix with fewer than sixteen values is left out, as reading it would run past the list.
++			if (coordlist.size() < 16)
++				return;
+ 			for(int i=0;i<4;++i)
+ 			{
+ 				m[i][0] = coordlist.at(i*4+0).toFloat();
+diff --git a/wrap/io_trimesh/import_dae.h b/wrap/io_trimesh/import_dae.h
+index 0dcaaa6f..2969119b 100644
+--- a/wrap/io_trimesh/import_dae.h
++++ b/wrap/io_trimesh/import_dae.h
+@@ -78,8 +78,9 @@ namespace io {
+             int indnm = -1;
+             if (!wnsrc.isNull())
+             {
++                if (faceind < 0 || faceind >= face.size()) return -1;
+                 indnm = face.at(faceind).toInt();
+-                assert(indnm * 3 < wn.size());
++                if (indnm < 0 || (long long)indnm * 3 + 2 >= wn.size()) return -1;
+                 m.face[meshfaceind].WN(component) = vcg::Point3f(wn.at(indnm * 3).toFloat(),wn.at(indnm * 3 + 1).toFloat(),wn.at(indnm * 3 + 2).toFloat());
+             }
+             return indnm;
+@@ -90,9 +91,10 @@ namespace io {
+             int indtx = -1;
+             if (!wtsrc.isNull())
+             {
++                if (faceind < 0 || faceind >= face.size()) return -1;
+                 indtx = face.at(faceind).toInt();
+                 //int num = wt.size();
+-                assert(indtx * stride < wt.size());
++                if (indtx < 0 || stride < 2 || (long long)indtx * stride + 1 >= wt.size()) return -1;
+                 m.face[meshfaceind].WT(component) = vcg::TexCoord2<float>();
+                 m.face[meshfaceind].WT(component).U() = wt.at(indtx * stride).toFloat();
+                 m.face[meshfaceind].WT(component).V() = wt.at(indtx * stride + 1).toFloat();
+@@ -109,9 +111,10 @@ namespace io {
+             int indtx = -1;
+             if (!wtsrc.isNull())
+             {
++                if (faceind < 0 || faceind >= faceIndexList.size()) return -1;
+                 indtx = faceIndexList.at(faceind).toInt();
+                 //int num = wt.size();
+-                assert(indtx * stride < wt.size());
++                if (indtx < 0 || stride < 2 || (long long)indtx * stride + 1 >= wt.size()) return -1;
+                 WT = vcg::TexCoord2<float>();
+                 WT.U() = wt.at(indtx * stride).toFloat();
+                 WT.V() = wt.at(indtx * stride + 1).toFloat();
+@@ -125,9 +128,11 @@ namespace io {
+             int indcl = -1;
+             if (!wcsrc.isNull())
+             {
++                if (faceind < 0 || faceind >= face.size()) return -1;
+                 indcl = face.at(faceind).toInt();
+-                assert((colorcomponent == 4) || (colorcomponent == 3));
+-                assert(indcl * colorcomponent < wc.size());
++                if ((colorcomponent != 4) && (colorcomponent != 3)) return -1;
++                if (indcl < 0 || (long long)indcl * colorcomponent + colorcomponent - 1 >= wc.size()) return -1;
++                if (vertind < 0 || vertind >= (int)m.vert.size()) return -1;
+                 vcg::Color4b c;
+                 if (colorcomponent == 3)
+                     c[3] = 255;
+@@ -240,13 +245,16 @@ namespace io {
+                     for(int ff = 0; ff < (int) faceSizeList.size();++ff) // for each polygon
+                     {
+                         int curFaceVertNum = faceSizeList.at(ff).toInt();
++                        if (curFaceVertNum < 0 || (long long)faceIndexCnt + (long long)curFaceVertNum * faceAttributeNum > faceIndexList.size())
++                            return E_INCOMPATIBLECOLLADA141FORMAT;
+ 
+                         MyPolygon<typename ColladaMesh::VertexType>  polyTemp(curFaceVertNum);
+                         for(int tt = 0;tt < curFaceVertNum ;++tt)  // for each vertex of the polygon
+                         {
+                             int indvt = faceIndexList.at(faceIndexCnt).toInt();
+                             if(faceSizeList.size()<100) QDEBUG("*******                 Reading face[%3i].V(%i) = %4i  (%i-th of the index list) (face has %i vertices)",ff,tt,indvt,faceIndexCnt,curFaceVertNum);
+-                            assert(indvt + offset < m.vert.size());
++                            if (indvt < 0 || indvt + offset >= m.vert.size())
++                                return E_INCOMPATIBLECOLLADA141FORMAT;
+                             polyTemp._pv[tt] = &(m.vert[indvt + offset]);
+                             faceIndexCnt +=faceAttributeNum;
+ 
+@@ -278,6 +286,7 @@ namespace io {
+     static DAEError AddPolygonToMesh(MyPolygon<typename ColladaMesh::VertexType>  &polyTemp, ColladaMesh& m)
+         {
+             int vertNum=polyTemp._pv.size();
++            if (vertNum < 3) return E_NOERROR;
+             int triNum= vertNum -2;
+             typename ColladaMesh::FaceIterator fp=vcg::tri::Allocator<ColladaMesh>::AddFaces(m,triNum);
+             // Very simple fan triangulation of the polygon.
+@@ -415,7 +424,7 @@ namespace io {
+ 
+                 // Ensure that the <p> array size is consistent with the number of triangles and the
+                 // exprected stride.
+-                if (face.size() != 3 * triangleNumber * numTriangleAttributeIndices) {
++                if ((long long)face.size() != 3LL * triangleNumber * numTriangleAttributeIndices) {
+                     QDEBUG("********* ERROR triangle count is inconsistent with input offsets and face index list");
+                     return E_INCOMPATIBLECOLLADA141FORMAT;
+                 }
+@@ -423,6 +432,14 @@ namespace io {
+                 int offsetface = (int)m.face.size();
+                 if (face.size() != 0)
+                 {
++                    // Every vertex index is checked before a face is added, so a list that names a vertex the
++                    // geometry does not hold adds none of its faces, & the mesh keeps only whole ones.
++                    for (int kk = 0; kk < face.size(); kk += numTriangleAttributeIndices)
++                    {
++                        int indvt = face.at(kk).toInt();
++                        if (indvt < 0 || indvt + offset >= m.vert.size())
++                            return E_INCOMPATIBLECOLLADA141FORMAT;
++                    }
+                     vcg::tri::Allocator<ColladaMesh>::AddFaces(m, triangleNumber);
+                     WedgeAttribute wa;
+                     FindStandardWedgeAttributes(wa,triNodeList.at(tript),*(info.doc));
+@@ -434,7 +451,6 @@ namespace io {
+                         for(unsigned int tt = 0;tt < 3;++tt)
+                         {
+                             int indvt = face.at(jj).toInt();
+-                            assert(indvt + offset < m.vert.size());
+                             m.face[ff].V(tt) = &(m.vert[indvt + offset]);
+ 
+                             if(tri::HasPerWedgeNormal(m))
+@@ -554,13 +570,24 @@ namespace io {
+                     if (!srcnodecolor.isNull())
+                         valueStringList(geosrcvertcol,srcnodecolor,"float_array");
+ 
++                    // A per vertex attribute is read only from a list that holds a value for every vertex.
++                    const bool readNormals = !srcnodenorm.isNull() && (long long)geosrcvertnorm.size() >= 3LL * nvert;
++                    const bool readTexCoords = !srcnodetext.isNull() && (long long)geosrcverttext.size() >= 2LL * nvert;
++                    int colorComponents = 0;
++                    if (!srcnodecolor.isNull() && accesslist.size() > 0)
++                    {
++                        const int components = accesslist.at(0).childNodes().size();
++                        if ((components == 3 || components == 4) && (long long)geosrcvertcol.size() >= (long long)components * nvert)
++                            colorComponents = components;
++                    }
++
+                     int ii = 0;
+                     for(size_t vv = offset;vv < m.vert.size();++vv)
+                     {
+                         Point3f positionCoord(geosrcposarr[ii * 3].toFloat(),geosrcposarr[ii * 3 + 1].toFloat(),geosrcposarr[ii * 3 + 2].toFloat());
+                         m.vert[vv].P() = positionCoord;
+ 
+-                        if (!srcnodenorm.isNull())
++                        if (readNormals)
+                         {
+                             Point3f normalCoord(geosrcvertnorm[ii * 3].toFloat(),
+                                                                     geosrcvertnorm[ii * 3 + 1].toFloat(),
+@@ -569,20 +596,20 @@ namespace io {
+                             m.vert[vv].N() = normalCoord;
+                         }
+ 
+-                        if (!srcnodecolor.isNull())
++                        if (colorComponents != 0)
+                         {
+                             if (accesslist.size() > 0)
+                             {
+                                 //component per color...obviously we assume they are RGB or RGBA if ARGB you get fancy effects....
+-                                if (accesslist.at(0).childNodes().size() == 4)
++                                if (colorComponents == 4)
+                                     m.vert[vv].C() = vcg::Color4b(geosrcvertcol[ii * 4].toFloat()*255.0,geosrcvertcol[ii * 4 + 1].toFloat()*255.0,geosrcvertcol[ii * 4 + 2].toFloat()*255.0,geosrcvertcol[ii * 4 + 3].toFloat()*255.0);
+                                 else
+-                                    if (accesslist.at(0).childNodes().size() == 3)
++                                    if (colorComponents == 3)
+                                         m.vert[vv].C() = vcg::Color4b(geosrcvertcol[ii * 3].toFloat()*255.0,geosrcvertcol[ii * 3 + 1].toFloat()*255.0,geosrcvertcol[ii * 3 + 2].toFloat()*255.0,255.0);
+                             }
+                         }
+ 
+-                        if (!srcnodetext.isNull())
++                        if (readTexCoords)
+                         {
+ 
+                             assert((ii * 2 < geosrcverttext.size()) && (ii * 2 + 1 < geosrcverttext.size()));
+@@ -651,6 +678,19 @@ namespace io {
+                                                             ColladaMesh& m, Matrix44f curTr,
+                                                             InfoDAE& info)
+         {
++                QList<QDomNode> active;
++                AddNodeToMesh(node, m, curTr, info, active);
++        }
++
++        // active holds the nodes being added, from the visual scene down. An instance_node naming one of them
++        // would add that node inside itself for ever, so it is skipped.
++        static void AddNodeToMesh(QDomElement node,
++                                                            ColladaMesh& m, Matrix44f curTr,
++                                                            InfoDAE& info, QList<QDomNode>& active)
++        {
++                if (active.contains(node))
++                    return;
++                active.append(node);
+                 QDEBUG("Starting processing <node> with id %s",qPrintable(node.attribute("id")));
+ 
+                 curTr = curTr * getTransfMatrixFromNode(node);
+@@ -713,7 +753,7 @@ namespace io {
+                 for(int ch = 0;ch < nodeNodeList.size();++ch)
+                 {
+                     if(nodeNodeList.at(ch).parentNode()==node) // process only direct child
+-                            AddNodeToMesh(nodeNodeList.at(ch).toElement(), m,curTr, info);
++                            AddNodeToMesh(nodeNodeList.at(ch).toElement(), m,curTr, info, active);
+                 }
+ 
+                 QDomNodeList instanceNodeList = node.elementsByTagName("instance_node");
+@@ -729,9 +769,10 @@ namespace io {
+                         if(refNode.isNull())
+                             QDEBUG("findNodeBySpecificAttributeValue returned a null node for %s",qPrintable(node_url));
+ 
+-                        AddNodeToMesh(refNode.toElement(), m,curTr, info);
++                        AddNodeToMesh(refNode.toElement(), m,curTr, info, active);
+                     }
+                 }
++                active.removeLast();
+         }
+ 
+ 

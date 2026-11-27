@@ -212,3 +212,7 @@ Pymeshlab/dummybin*
 #idea
 .idea
 *.ini
+
+# HRConvert2
+/.hrconvert2-patched
+/pymeshlab/HRCONVERT2_BUILD.txt

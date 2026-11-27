@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: HRConvert2 <hrconvert2@invalid>
+Date: Thu, 26 Nov 2026 22:18:10 -0500
+Subject: [PATCH] CTM: harden the reader
+
+---
+ wrap/io_trimesh/import_ctm.h | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/wrap/io_trimesh/import_ctm.h b/wrap/io_trimesh/import_ctm.h
+index dfdde634..2573cd01 100644
+--- a/wrap/io_trimesh/import_ctm.h
++++ b/wrap/io_trimesh/import_ctm.h
+@@ -111,18 +111,18 @@ static int Open( OpenMeshType &m, const char * filename, int &loadmask, CallBack
+         m.vert[i].P()=CoordType(vertices[i*3+0],vertices[i*3+1],vertices[i*3+2]);
+ 
+     CTMenum colorAttrib = ctmGetNamedAttribMap(context,"Color");
+-    if(colorAttrib != CTM_NONE)
++    const CTMfloat *colors = (colorAttrib != CTM_NONE) ? ctmGetFloatArray(context,colorAttrib) : 0;
++    if(colors != 0)
+     {
+-      const CTMfloat *colors = ctmGetFloatArray(context,colorAttrib);
+       for(unsigned int i=0;i<vertCount;++i)
+           m.vert[i].C()=Color4b(colors[i*4+0]*255,colors[i*4+1]*255,colors[i*4+2]*255,colors[i*4+3]*255);
+       loadmask |= Mask::IOM_VERTCOLOR;
+     }
+ 
+     CTMenum qualityAttrib = ctmGetNamedAttribMap(context,"Quality");
+-    if(qualityAttrib != CTM_NONE)
++    const CTMfloat *qualities = (qualityAttrib != CTM_NONE) ? ctmGetFloatArray(context,qualityAttrib) : 0;
++    if(qualities != 0)
+     {
+-      const CTMfloat *qualities = ctmGetFloatArray(context,colorAttrib);
+       for(unsigned int i=0;i<vertCount;++i)
+           m.vert[i].Q()=qualities[i*4+0];
+       loadmask |= Mask::IOM_VERTQUALITY;
+@@ -143,6 +143,12 @@ static int Open( OpenMeshType &m, const char * filename, int &loadmask, CallBack
+     // Free the context
+     ctmFreeContext(context);
+     }
++    else
++    {
++      // A file OpenCTM cannot load is refused, rather than read as an empty mesh.
++      ctmFreeContext(context);
++      return E_CANTOPEN;
++    }
+ 
+     int result = E_NOERROR;
+     return result;

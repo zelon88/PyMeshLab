@@ -1,0 +1,85 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: HRConvert2 <hrconvert2@invalid>
+Date: Fri, 27 Nov 2026 00:51:55 -0500
+Subject: [PATCH] STL: harden file handling
+
+---
+ wrap/io_trimesh/import_stl.h | 22 +++++++++++++++++++---
+ 1 file changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/wrap/io_trimesh/import_stl.h b/wrap/io_trimesh/import_stl.h
+index 964577bb..bf3f0025 100644
+--- a/wrap/io_trimesh/import_stl.h
++++ b/wrap/io_trimesh/import_stl.h
+@@ -113,6 +113,8 @@ static bool IsSTLColored(const char * filename, bool &coloredFlag, bool &magicsM
+      return true; 
+    
+    FILE *fp = fopen(filename, "rb");
++   if(fp == NULL)
++     return false;
+    // The label is 80 bytes with no terminator of its own, so the one past them is zeroed.
+    char buf[STL_LABEL_SIZE+1] = {0};
+    fread(buf,sizeof(char),STL_LABEL_SIZE,fp);
+@@ -154,15 +156,17 @@ static bool IsSTLMalformed(const char * filename, bool &binaryFlag)
+ {
+   binaryFlag=false;
+   FILE *fp = fopen(filename, "rb");
++  if(fp == NULL)
++    return false;
+   /* Find size of file */
+   fseek(fp, 0, SEEK_END);
+   std::size_t file_size = ftell(fp);
+   unsigned int facenum;
+   /* Check for binary or ASCII file */
+   int ret = fseek(fp, STL_LABEL_SIZE, SEEK_SET);
+-  if (ret != 0) return false;
++  if (ret != 0) { fclose(fp); return false; }
+   ret = fread(&facenum, sizeof(unsigned int), 1, fp);
+-  if (ret != 1) return false;
++  if (ret != 1) { fclose(fp); return false; }
+   
+   std::size_t expected_file_size=STL_LABEL_SIZE + 4 + (sizeof(short)+sizeof(STLFacet) )*facenum ;
+   if(file_size ==  expected_file_size) 
+@@ -177,7 +181,7 @@ static bool IsSTLMalformed(const char * filename, bool &binaryFlag)
+   unsigned char tmpbuf[1000];
+   std::size_t byte_to_read = std::min(sizeof(tmpbuf), (size_t)file_size - 80 - sizeof(unsigned int));
+   ret = fread(tmpbuf, byte_to_read,1,fp);
+-  if (ret != 1) return false;
++  if (ret != 1) { fclose(fp); return false; }
+   fclose(fp);
+   for(std::size_t i = 0; i < byte_to_read; i++)
+     {
+@@ -220,7 +224,10 @@ static int OpenBinary( OpenMeshType &m, const char * filename, int &loadMask, Ca
+ 
+   bool magicsMode,coloredFlag;
+   if(!IsSTLColored(filename,coloredFlag, magicsMode))
++  {
++    fclose(fp);
+     return E_MALFORMED;
++  }
+   if(!coloredFlag) 
+     loadMask = loadMask & (~Mask::IOM_FACECOLOR);
+ 
+@@ -301,13 +308,22 @@ static int OpenBinary( OpenMeshType &m, const char * filename, int &loadMask, Ca
+       ret=fscanf(fp, "%*s %*s"); // --> "outer loop"
+       ret=fscanf(fp, "%*s %f %f %f\n", &f.v[0].X(),  &f.v[0].Y(),  &f.v[0].Z()); // --> "vertex x y z"
+             if(ret!=3)
++            {
++                fclose(fp);
+                 return E_UNESPECTEDEOF;
++            }
+       ret=fscanf(fp, "%*s %f %f %f\n", &f.v[1].X(),  &f.v[1].Y(),  &f.v[1].Z()); // --> "vertex x y z"
+             if(ret!=3)
++            {
++                fclose(fp);
+                 return E_UNESPECTEDEOF;
++            }
+       ret=fscanf(fp, "%*s %f %f %f\n", &f.v[2].X(),  &f.v[2].Y(),  &f.v[2].Z()); // --> "vertex x y z"
+             if(ret!=3)
++            {
++                fclose(fp);
+                 return E_UNESPECTEDEOF;
++            }
+       ret=fscanf(fp, "%*s"); // --> "endloop"
+       ret=fscanf(fp, "%*s"); // --> "endfacet"
+             lineCnt+=7;

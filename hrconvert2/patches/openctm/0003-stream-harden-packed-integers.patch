@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: HRConvert2 <hrconvert2@invalid>
+Date: Thu, 26 Nov 2026 22:41:56 -0500
+Subject: [PATCH] stream: harden packed integers
+
+---
+ lib/stream.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/lib/stream.c b/lib/stream.c
+index 08e5d5b..8787a98 100644
+--- a/lib/stream.c
++++ b/lib/stream.c
+@@ -231,10 +231,10 @@ int _ctmStreamReadPackedInts(_CTMcontext * self, CTMint * aData,
+   {
+     for(k = 0; k < aSize; ++ k)
+     {
+-      value = (CTMint) tmp[i + k * aCount + 3 * aCount * aSize] |
+-              (((CTMint) tmp[i + k * aCount + 2 * aCount * aSize]) << 8) |
+-              (((CTMint) tmp[i + k * aCount + aCount * aSize]) << 16) |
+-              (((CTMint) tmp[i + k * aCount]) << 24);
++      value = (CTMint) ((CTMuint) tmp[i + k * aCount + 3 * aCount * aSize] |
++              (((CTMuint) tmp[i + k * aCount + 2 * aCount * aSize]) << 8) |
++              (((CTMuint) tmp[i + k * aCount + aCount * aSize]) << 16) |
++              (((CTMuint) tmp[i + k * aCount]) << 24));
+       // Convert signed magnitude to two's complement?
+       if(aSignedInts)
+       {
+@@ -411,10 +411,10 @@ int _ctmStreamReadPackedFloats(_CTMcontext * self, CTMfloat * aData,
+   {
+     for(k = 0; k < aSize; ++ k)
+     {
+-      value.i = (CTMint) tmp[i + k * aCount + 3 * aCount * aSize] |
+-                (((CTMint) tmp[i + k * aCount + 2 * aCount * aSize]) << 8) |
+-                (((CTMint) tmp[i + k * aCount + aCount * aSize]) << 16) |
+-                (((CTMint) tmp[i + k * aCount]) << 24);
++      value.i = (CTMint) ((CTMuint) tmp[i + k * aCount + 3 * aCount * aSize] |
++                (((CTMuint) tmp[i + k * aCount + 2 * aCount * aSize]) << 8) |
++                (((CTMuint) tmp[i + k * aCount + aCount * aSize]) << 16) |
++                (((CTMuint) tmp[i + k * aCount]) << 24));
+       aData[i * aSize + k] = value.f;
+     }
+   }

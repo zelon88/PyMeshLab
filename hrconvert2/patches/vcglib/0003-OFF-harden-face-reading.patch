@@ -1,0 +1,61 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: HRConvert2 <hrconvert2@invalid>
+Date: Fri, 20 Nov 2026 14:48:40 -0500
+Subject: [PATCH] OFF: harden face reading
+
+---
+ wrap/io_trimesh/import_off.h | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/wrap/io_trimesh/import_off.h b/wrap/io_trimesh/import_off.h
+index a6bfc8a1..b7e33570 100644
+--- a/wrap/io_trimesh/import_off.h
++++ b/wrap/io_trimesh/import_off.h
+@@ -52,6 +52,12 @@ namespace vcg {
+ 				typedef typename MESH_TYPE::CoordType				CoordType;
+ 				typedef typename MESH_TYPE::ScalarType			ScalarType;
+ 
++				// A face's vertex index names one of the nVertices vertices read before the faces.
++				static bool GoodOffIndex(const int index, const unsigned int nVertices)
++				{
++					return index >= 0 && static_cast<unsigned int>(index) < nVertices;
++				}
++
+ 				// OFF codes
+ 				enum OFFCodes {
+ 					NoError = 0, CantOpen, InvalidFile,
+@@ -391,6 +397,7 @@ namespace vcg {
+ 						{
+ 							if (cb && (f % 1000) == 0) cb(50 + f * 50 / nFaces, "Face Loading");
+ 							TokenizeNextLine(stream, tokens);
++							if (tokens.empty()) return InvalidFile; // a face the header counts is missing
+ 							int vert_per_face = atoi(tokens[0].c_str());
+ 							std::vector<int> vInd(vert_per_face);
+ 							k = 1;
+@@ -403,6 +410,7 @@ namespace vcg {
+ 									k = 0;
+ 								}
+ 								vInd[j] = atoi(tokens[k].c_str());
++								if (!GoodOffIndex(vInd[j], nVertices)) return InvalidFile;
+ 								k++;
+ 							}
+ 							if (vert_per_face == 3)
+@@ -433,6 +441,7 @@ namespace vcg {
+ 								cb(50 + ff * 50 / nFaces, "Face Loading");
+ 
+ 							TokenizeNextLine(stream, tokens);
++							if (tokens.empty()) return InvalidFile; // a face the header counts is missing
+ 							int vert_per_face = atoi(tokens[0].c_str());
+ 							if (vert_per_face < 2)
+ 								return ErrorDegenerateFace;
+@@ -441,6 +450,10 @@ namespace vcg {
+ 								TokenizeNextLine(stream, tokens, true);
+ 								if ((tokens.size() + 1) < vert_per_face ) return InvalidFile; // if EOF								
+ 							}
++							// Every index the face names is on the line, & names a vertex the file holds.
++							if (tokens.size() < static_cast<size_t>(vert_per_face) + 1) return InvalidFile;
++							for (int j = 1; j <= vert_per_face; j++)
++								if (!GoodOffIndex(atoi(tokens[j].c_str()), nVertices)) return InvalidFile;
+ 							if (vert_per_face == 2)
+ 							{
+ 								int vInd[2];

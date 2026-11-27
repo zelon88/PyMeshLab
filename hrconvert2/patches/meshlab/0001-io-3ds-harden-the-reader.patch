@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: HRConvert2 <hrconvert2@invalid>
+Date: Thu, 26 Nov 2026 22:07:21 -0500
+Subject: [PATCH] io_3ds: harden the reader
+
+---
+ src/meshlabplugins/io_3ds/import_3ds.h | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/meshlabplugins/io_3ds/import_3ds.h b/src/meshlabplugins/io_3ds/import_3ds.h
+index 5fa1cf6..4e1dba1 100644
+--- a/src/meshlabplugins/io_3ds/import_3ds.h
++++ b/src/meshlabplugins/io_3ds/import_3ds.h
+@@ -307,8 +307,14 @@ static int readNode(
+ 							// texture coordinates
+ 							for (int i=0; i<3; ++i)
+ 							{
+-								(*fi).WT(i).u() = mesh->texelL[f->points[i]][0];
+-								(*fi).WT(i).v() = mesh->texelL[f->points[i]][1];
++								if (mesh->texelL != NULL && f->points[i] < mesh->texels) {
++									(*fi).WT(i).u() = mesh->texelL[f->points[i]][0];
++									(*fi).WT(i).v() = mesh->texelL[f->points[i]][1];
++								}
++								else {
++									(*fi).WT(i).u() = 0;
++									(*fi).WT(i).v() = 0;
++								}
+ 
+ 								(*fi).WT(i).n() = textureIdx;
+ 							}

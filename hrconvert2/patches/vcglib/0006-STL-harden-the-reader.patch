@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: HRConvert2 <hrconvert2@invalid>
+Date: Thu, 26 Nov 2026 22:03:51 -0500
+Subject: [PATCH] STL: harden the reader
+
+---
+ wrap/io_trimesh/import_stl.h | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/wrap/io_trimesh/import_stl.h b/wrap/io_trimesh/import_stl.h
+index 2b79727f..964577bb 100644
+--- a/wrap/io_trimesh/import_stl.h
++++ b/wrap/io_trimesh/import_stl.h
+@@ -113,7 +113,8 @@ static bool IsSTLColored(const char * filename, bool &coloredFlag, bool &magicsM
+      return true; 
+    
+    FILE *fp = fopen(filename, "rb");
+-   char buf[STL_LABEL_SIZE+1];
++   // The label is 80 bytes with no terminator of its own, so the one past them is zeroed.
++   char buf[STL_LABEL_SIZE+1] = {0};
+    fread(buf,sizeof(char),STL_LABEL_SIZE,fp);
+    std::string strInput(buf);
+    size_t cInd = strInput.rfind("COLOR=");
+@@ -273,8 +274,9 @@ static int OpenBinary( OpenMeshType &m, const char * filename, int &loadMask, Ca
+ 
+     m.Clear();
+ 
+-    /* Skip the first line of the file */
+-    while(getc(fp) != '\n') { }
++    /* Skip the first line of the file, which the end of the file ends if no newline does */
++    int c;
++    do { c = getc(fp); } while(c != '\n' && c != EOF);
+ 
+     STLFacet f;
+     int cnt=0;

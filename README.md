@@ -1,5 +1,7 @@
 # PyMeshLab
 
+> This branch is HRConvert2's build of PyMeshLab 2025.7.post1, with patches to its model readers. [hrconvert2/README.md](hrconvert2/README.md) says what it is & how it is built. Upstream is [cnr-isti-vclab/PyMeshLab](https://github.com/cnr-isti-vclab/PyMeshLab).
+
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4438750.svg)](https://doi.org/10.5281/zenodo.4438750)
 
 [![BuildAndTest](https://github.com/cnr-isti-vclab/PyMeshLab/actions/workflows/BuildAndTest.yml/badge.svg)](https://github.com/cnr-isti-vclab/PyMeshLab/actions/workflows/BuildAndTest.yml)

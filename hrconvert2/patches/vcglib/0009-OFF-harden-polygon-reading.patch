@@ -1,0 +1,50 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: HRConvert2 <hrconvert2@invalid>
+Date: Thu, 26 Nov 2026 22:35:40 -0500
+Subject: [PATCH] OFF: harden polygon reading
+
+---
+ wrap/io_trimesh/import_off.h | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/wrap/io_trimesh/import_off.h b/wrap/io_trimesh/import_off.h
+index 6bb19120..76220805 100644
+--- a/wrap/io_trimesh/import_off.h
++++ b/wrap/io_trimesh/import_off.h
+@@ -454,6 +454,7 @@ namespace vcg {
+ 							if (tokens.size() < static_cast<size_t>(vert_per_face) + 1) return InvalidFile;
+ 							for (int j = 1; j <= vert_per_face; j++)
+ 								if (!GoodOffIndex(atoi(tokens[j].c_str()), nVertices)) return InvalidFile;
++							const int facesBefore = mesh.fn;
+ 							if (vert_per_face == 2)
+ 							{
+ 								int vInd[2];
+@@ -508,7 +509,7 @@ namespace vcg {
+ #endif
+ 									for (size_t j = 0; j < indexTriangulatedVect.size(); j += 3)
+ 									{
+-										Allocator<MESH_TYPE>::AddFace(mesh, indexTriangulatedVect[j], indexTriangulatedVect[j+1], indexTriangulatedVect[j+2]);
++										Allocator<MESH_TYPE>::AddFace(mesh, vertIndices[indexTriangulatedVect[j]], vertIndices[indexTriangulatedVect[j+1]], vertIndices[indexTriangulatedVect[j+2]]);
+ 										if (tri::HasPerFaceFlags(mesh)) mesh.face.back().SetF(0);
+ 										// To correctly set Faux edges we have to clear the faux bit for all the edges that do not correspond to consecutive vertices
+ 										// Consecutivity is in the space of the index of the polygon.
+@@ -535,7 +536,7 @@ namespace vcg {
+ 
+ 								if (tri::HasPerFaceColor(mesh))
+ 								{
+-									int triToColor = vert_per_face-2;
++									int triToColor = mesh.fn - facesBefore;
+ 									switch (color_elements)
+ 									{
+ 									case 0:
+@@ -546,8 +547,8 @@ namespace vcg {
+ 									}
+ 									case 1:
+ 									{
+-										for (int i=0; i<vert_per_face-2;++i)
+-											mesh.face[mesh.fn - vert_per_face + i].C().Import(ColorMap(atoi(tokens[vert_per_face + 1].c_str())));
++										for (int i=0; i<triToColor;++i)
++											mesh.face[mesh.fn - triToColor + i].C().Import(ColorMap(atoi(tokens[vert_per_face + 1].c_str())));
+ 										break;
+ 									}
+ 									case 3:

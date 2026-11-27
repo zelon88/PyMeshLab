@@ -1,0 +1,22 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: HRConvert2 <hrconvert2@invalid>
+Date: Fri, 20 Nov 2026 15:30:00 -0500
+Subject: [PATCH] OFF: harden colour reading
+
+---
+ wrap/io_trimesh/import_off.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/wrap/io_trimesh/import_off.h b/wrap/io_trimesh/import_off.h
+index b7e33570..6bb19120 100644
+--- a/wrap/io_trimesh/import_off.h
++++ b/wrap/io_trimesh/import_off.h
+@@ -797,6 +797,8 @@ namespace vcg {
+ 					  { 0.4f,	 0.4f,	 0.4f,	 0.4f	 },
+ 					  { 0.8f,	 0.8f,	 0.8f,	 0.8f	 }
+ 					};
++					// An index outside the map reads as its first entry.
++					if (i < 0 || i >= static_cast<int>(sizeof(colorMap) / sizeof(colorMap[0]))) i = 0;
+ 					return Color4f(colorMap[i][0], colorMap[i][1], colorMap[i][2], colorMap[i][3]);
+ 				}
+ 			};

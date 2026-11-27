@@ -140,6 +140,15 @@ set(MESHLAB_PLUGINS
 	meshlabplugins/filter_voronoi
 )
 
+### HRConvert2
+# MeshLab builds lib3ds & OpenCTM from the copies hrconvert2/apply.sh unpacked & patched in its downloads folder,
+# & never from a library the system provides. A tree apply.sh has not patched is refused.
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../.hrconvert2-patched")
+	message(FATAL_ERROR "HRConvert2: run hrconvert2/apply.sh before configuring.")
+endif()
+set(MESHLAB_ALLOW_SYSTEM_LIB3DS OFF CACHE BOOL "" FORCE)
+set(MESHLAB_ALLOW_SYSTEM_OPENCTM OFF CACHE BOOL "" FORCE)
+
 add_subdirectory(meshlab)
 
 

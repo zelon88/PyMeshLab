@@ -1,0 +1,56 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: HRConvert2 <hrconvert2@invalid>
+Date: Thu, 26 Nov 2026 22:06:28 -0500
+Subject: [PATCH] file: harden the node hierarchy
+
+---
+ lib3ds/file.c | 22 +++++++++++++++++++++-
+ 1 file changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/lib3ds/file.c b/lib3ds/file.c
+index 22ef525..5cca2ce 100644
+--- a/lib3ds/file.c
++++ b/lib3ds/file.c
+@@ -1721,6 +1721,23 @@ lib3ds_file_node_by_id(Lib3dsFile *file, Lib3dsWord node_id)
+ }
+ 
+ 
++/*
++ * True where ancestor is node itself or a parent of node, at any depth.
++ */
++static Lib3dsBool
++node_is_ancestor(Lib3dsNode *ancestor, Lib3dsNode *node)
++{
++  Lib3dsNode *p;
++
++  for (p=node; p!=0; p=p->parent) {
++    if (p==ancestor) {
++      return(LIB3DS_TRUE);
++    }
++  }
++  return(LIB3DS_FALSE);
++}
++
++
+ /*!
+  * Insert a new node into a Lib3dsFile object.
+  *
+@@ -1752,6 +1769,9 @@ lib3ds_file_insert_node(Lib3dsFile *file, Lib3dsNode *node)
+   parent=0;
+   if (node->parent_id!=LIB3DS_NO_PARENT) {
+     parent=lib3ds_file_node_by_id(file, node->parent_id);
++    if (parent && node_is_ancestor(node, parent)) {
++      parent=0;
++    }
+   }
+   node->parent=parent;
+   
+@@ -1789,7 +1809,7 @@ lib3ds_file_insert_node(Lib3dsFile *file, Lib3dsNode *node)
+   if (node->node_id!=LIB3DS_NO_PARENT) {
+     for (n=file->nodes; n!=0; n=p) {
+       p=n->next;
+-      if (n->parent_id==node->node_id) {
++      if ((n->parent_id==node->node_id) && !node_is_ancestor(n, node)) {
+         lib3ds_file_remove_node(file, n);
+         lib3ds_file_insert_node(file, n);
+       }

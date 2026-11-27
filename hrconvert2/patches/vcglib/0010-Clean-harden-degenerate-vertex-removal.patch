@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: HRConvert2 <hrconvert2@invalid>
+Date: Thu, 26 Nov 2026 23:12:18 -0500
+Subject: [PATCH] Clean: harden degenerate vertex removal
+
+---
+ vcg/complex/algorithms/clean.h | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/vcg/complex/algorithms/clean.h b/vcg/complex/algorithms/clean.h
+index e91d1f91..f721adb2 100644
+--- a/vcg/complex/algorithms/clean.h
++++ b/vcg/complex/algorithms/clean.h
+@@ -463,6 +463,14 @@ public:
+ 					Allocator<MeshType>::DeleteFace(m,*fi);
+ 				}
+ 		(void)count_fd;
++
++		// An edge on a deleted vertex is deleted with it, as a face is, or compacting the vertices would leave the
++		// edge pointing outside them.
++		for(EdgeIterator ei=m.edge.begin(); ei!=m.edge.end();++ei)
++			if(!(*ei).IsD())
++				if( ((*ei).V(0)!=0 && (*ei).V(0)->IsD()) ||
++				    ((*ei).V(1)!=0 && (*ei).V(1)->IsD()) )
++					Allocator<MeshType>::DeleteEdge(m,*ei);
+ 		return count_vd;
+ 	}
+ 

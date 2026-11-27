@@ -1,0 +1,61 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: HRConvert2 <hrconvert2@invalid>
+Date: Thu, 26 Nov 2026 22:06:28 -0500
+Subject: [PATCH] mesh: harden mesh reading
+
+---
+ lib3ds/mesh.c | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)
+
+diff --git a/lib3ds/mesh.c b/lib3ds/mesh.c
+index 98349be..26981b2 100644
+--- a/lib3ds/mesh.c
++++ b/lib3ds/mesh.c
+@@ -87,7 +87,9 @@ face_array_read(Lib3dsMesh *mesh, Lib3dsIo *io)
+             faces=lib3ds_io_read_word(io);
+             for (i=0; i<faces; ++i) {
+               index=lib3ds_io_read_word(io);
+-              ASSERT(index<mesh->faces);
++              if (index>=mesh->faces) {
++                return(LIB3DS_FALSE);
++              }
+               strcpy(mesh->faceL[index].material, name);
+             }
+           }
+@@ -519,8 +521,6 @@ lib3ds_mesh_calculate_normals(Lib3dsMesh *mesh, Lib3dsVector *normalL)
+         for (p=fl[f->points[j]]; p; p=p->next) {
+           found=0;
+           for (l=0; l<k; ++l) {
+-	    if( l >= 128 )
+-	      printf("array N overflow: i=%d, j=%d, k=%d\n", i,j,k);
+             if (fabs(lib3ds_vector_dot(N[l], p->face->normal)-1.0)<1e-5) {
+               found=1;
+               break;
+@@ -529,8 +529,10 @@ lib3ds_mesh_calculate_normals(Lib3dsMesh *mesh, Lib3dsVector *normalL)
+           if (!found) {
+             if (f->smoothing & p->face->smoothing) {
+               lib3ds_vector_add(n,n, p->face->normal);
+-              lib3ds_vector_copy(N[k], p->face->normal);
+-              ++k;
++              if (k<128) {
++                lib3ds_vector_copy(N[k], p->face->normal);
++                ++k;
++              }
+             }
+           }
+         }
+@@ -729,9 +731,11 @@ lib3ds_mesh_read(Lib3dsMesh *mesh, Lib3dsIo *io)
+     unsigned j;
+ 
+     for (j=0; j<mesh->faces; ++j) {
+-      ASSERT(mesh->faceL[j].points[0]<mesh->points);
+-      ASSERT(mesh->faceL[j].points[1]<mesh->points);
+-      ASSERT(mesh->faceL[j].points[2]<mesh->points);
++      if ((mesh->faceL[j].points[0]>=mesh->points) ||
++          (mesh->faceL[j].points[1]>=mesh->points) ||
++          (mesh->faceL[j].points[2]>=mesh->points)) {
++        return(LIB3DS_FALSE);
++      }
+       lib3ds_vector_normal(
+         mesh->faceL[j].normal,
+         mesh->pointL[mesh->faceL[j].points[0]].pos,

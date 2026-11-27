@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: HRConvert2 <hrconvert2@invalid>
+Date: Thu, 26 Nov 2026 22:07:03 -0500
+Subject: [PATCH] stream: harden string reading
+
+---
+ lib/stream.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/lib/stream.c b/lib/stream.c
+index 53b1b72..08e5d5b 100644
+--- a/lib/stream.c
++++ b/lib/stream.c
+@@ -129,8 +129,13 @@ void _ctmStreamReadSTRING(_CTMcontext * self, char ** aValue)
+     *aValue = (char *) 0;
+   }
+ 
+-  // Get string length
++  // Get string length. A length the file gives is held to 16 MiB, so that len + 1 cannot wrap.
+   len = _ctmStreamReadUINT(self);
++  if(len > 0x01000000)
++  {
++    self->mError = CTM_BAD_FORMAT;
++    return;
++  }
+ 
+   // Read string
+   if(len > 0)

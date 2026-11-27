@@ -1,0 +1,56 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: HRConvert2 <hrconvert2@invalid>
+Date: Fri, 27 Nov 2026 00:09:43 -0500
+Subject: [PATCH] OFF: harden header counts
+
+---
+ wrap/io_trimesh/import_off.h | 29 ++++++++++++++++++++++++-----
+ 1 file changed, 24 insertions(+), 5 deletions(-)
+
+diff --git a/wrap/io_trimesh/import_off.h b/wrap/io_trimesh/import_off.h
+index 76220805..deeeecc4 100644
+--- a/wrap/io_trimesh/import_off.h
++++ b/wrap/io_trimesh/import_off.h
+@@ -24,6 +24,8 @@
+ #define __VCGLIB_IMPORT_OFF
+ 
+ #include <fstream>
++#include <cstdlib>
++#include <limits>
+ #include<vcg/complex/algorithms/bitquad_support.h>
+ #include <wrap/io_trimesh/io_mask.h>
+ #include <wrap/io_trimesh/io_fan_tessellator.h>
+@@ -212,11 +214,28 @@ namespace vcg {
+ 					if (tokens.size() < 3)
+ 						return InvalidFile;
+ 
+-					unsigned int nVertices, nFaces, nEdges;
+-					nVertices = atoi(tokens[0].c_str());
+-					nFaces = atoi(tokens[1].c_str());
+-					nEdges = atoi(tokens[2].c_str());
+-					(void)nEdges; // unused
++					// The counts come from the file and are not trusted: a negative one is refused, and so is
++					// a vertex count the rest of the file is too short to hold (a vertex takes at least 6
++					// characters, "0 0 0" and a separator), since the vertices are allocated before any is read.
++					// As vcglib's devel reads them, since daad759e.
++					const long nVerticesRead = strtol(tokens[0].c_str(), nullptr, 10);
++					const long nFacesRead = strtol(tokens[1].c_str(), nullptr, 10);
++					if (nVerticesRead < 0 || nFacesRead < 0 ||
++						nVerticesRead > std::numeric_limits<int>::max() || nFacesRead > std::numeric_limits<int>::max())
++						return InvalidFile;
++					{
++						const std::streampos here = stream.tellg();
++						if (here != std::streampos(-1))
++						{
++							stream.seekg(0, std::ios::end);
++							const std::streamoff left = stream.tellg() - here;
++							stream.seekg(here);
++							if (nVerticesRead > (left + 1) / 6)
++								return InvalidFile;
++						}
++					}
++					const unsigned int nVertices = static_cast<unsigned int>(nVerticesRead);
++					const unsigned int nFaces = static_cast<unsigned int>(nFacesRead);
+ 
+ 					// dimension is the space dimension of vertices => it must be three(!)
+ 					if (dimension != 3)

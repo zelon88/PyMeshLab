@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<X3D profile="Interchange" version="3.0">
+<Scene>
+<Shape><IndexedFaceSet coordIndex="0 1 2 -1"><Coordinate point="0 0 0 1 0 0 0 1 0"/></IndexedFaceSet></Shape>
+</Scene>
+</X3D>

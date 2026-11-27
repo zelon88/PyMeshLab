@@ -1,0 +1,40 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: HRConvert2 <hrconvert2@invalid>
+Date: Thu, 26 Nov 2026 22:07:59 -0500
+Subject: [PATCH] chunk: harden debug output
+
+---
+ lib3ds/chunk.c | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/lib3ds/chunk.c b/lib3ds/chunk.c
+index d2f9450..cbd427f 100644
+--- a/lib3ds/chunk.c
++++ b/lib3ds/chunk.c
+@@ -40,17 +40,24 @@ static Lib3dsBool enable_unknown=LIB3DS_FALSE;
+ static char lib3ds_chunk_level[128]="";
+ 
+ 
++/* A read that fails returns without leaving its chunk, so the indentation is kept inside its buffer
++   & never taken below empty. */
+ static void
+ lib3ds_chunk_debug_enter(Lib3dsChunk *c)
+ {
+-  strcat(lib3ds_chunk_level, "  ");
++  if (strlen(lib3ds_chunk_level)+2<sizeof(lib3ds_chunk_level)) {
++    strcat(lib3ds_chunk_level, "  ");
++  }
+ }
+ 
+ 
+ static void
+ lib3ds_chunk_debug_leave(Lib3dsChunk *c)
+ {
+-  lib3ds_chunk_level[strlen(lib3ds_chunk_level)-2]=0;
++  size_t len=strlen(lib3ds_chunk_level);
++  if (len>=2) {
++    lib3ds_chunk_level[len-2]=0;
++  }
+ }
+ 
+ 

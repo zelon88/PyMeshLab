@@ -1,0 +1,24 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: HRConvert2 <hrconvert2@invalid>
+Date: Thu, 26 Nov 2026 22:06:28 -0500
+Subject: [PATCH] chunk: harden chunk walking
+
+---
+ lib3ds/chunk.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/lib3ds/chunk.c b/lib3ds/chunk.c
+index e41ca43..d2f9450 100644
+--- a/lib3ds/chunk.c
++++ b/lib3ds/chunk.c
+@@ -150,6 +150,10 @@ lib3ds_chunk_read_next(Lib3dsChunk *c, Lib3dsIo *io)
+   d.chunk=lib3ds_io_read_word(io);
+   d.size=lib3ds_io_read_dword(io);
+   lib3ds_chunk_debug_dump(&d);
++  if (lib3ds_io_error(io) || (d.size<6) || (d.size>c->end-c->cur)) {
++    c->cur=c->end;
++    return(0);
++  }
+   c->cur+=d.size;
+   return(d.chunk);
+ }
